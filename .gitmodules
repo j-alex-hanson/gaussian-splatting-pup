@@ -7,3 +7,6 @@
 [submodule "SIBR_viewers"]
 	path = SIBR_viewers
 	url = https://gitlab.inria.fr/sibr/sibr_core.git
+[submodule "submodules/rasterization_and_pup_fisher"]
+	path = submodules/rasterization_and_pup_fisher
+	url = git@github.com:j-alex-hanson/rasterization_and_pup_fisher.git

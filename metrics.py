@@ -26,6 +26,7 @@ def readImages(renders_dir, gt_dir):
     gts = []
     image_names = []
     for fname in os.listdir(renders_dir):
+        if '.ipynb' in fname: continue
         render = Image.open(renders_dir / fname)
         gt = Image.open(gt_dir / fname)
         renders.append(tf.to_tensor(render).unsqueeze(0)[:, :3, :, :].cuda())
