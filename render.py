@@ -23,6 +23,7 @@ from gaussian_renderer import GaussianModel
 
 from timeit import default_timer as timer
 from datetime import timedelta
+import time
 
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
@@ -31,21 +32,40 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     makedirs(render_path, exist_ok=True)
     makedirs(gts_path, exist_ok=True)
 
-    total_time = 0.0
     for idx, view in enumerate(tqdm(views, desc="Rendering progress")):
-        start = timer()
         rendering = render(view, gaussians, pipeline, background)["render"]
-        end = timer()
-        total_time += timedelta(seconds=end-start).total_seconds()
 
         gt = view.original_image[0:3, :, :]
         torchvision.utils.save_image(rendering, os.path.join(render_path, '{0:05d}'.format(idx) + ".png"))
         torchvision.utils.save_image(gt, os.path.join(gts_path, '{0:05d}'.format(idx) + ".png"))
 
-    avg_fps = len_views / total_time
+    # FPS
+    repeat = 3
+    num_frames = len(views) * repeat
+    total_time = 0.0
+    pbar = tqdm(total=num_frames, desc="FPS progress")
+
+    # Warm-up before timing; First frame is slower so don't include it
+    for view in views[:10]:
+        rendering = render(view, gaussians, pipeline, background)["render"]
+        time.sleep(0.1)
+
+    for _ in range(repeat):
+        for view in views:
+            start = timer()
+            rendering = render(view, gaussians, pipeline, background)["render"]
+            end = timer()
+            total_time += timedelta(seconds=end-start).total_seconds()
+            time.sleep(0.1)
+            pbar.update(1)
+
+    pbar.close()
+
+    avg_fps = num_frames / total_time
     print("Average FPS:", avg_fps)
     with open(os.path.join(model_path, 'fps.txt'), 'w') as f:
-        f.write(avg_fps)
+        f.write(str(avg_fps))
+
 
 def render_sets(dataset : ModelParams, iteration : int, pipeline : PipelineParams, skip_train : bool, skip_test : bool):
     with torch.no_grad():
