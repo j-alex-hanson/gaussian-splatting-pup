@@ -23,7 +23,6 @@ from gaussian_renderer import GaussianModel
 
 from timeit import default_timer as timer
 from datetime import timedelta
-import time
 
 def render_set(model_path, name, iteration, views, gaussians, pipeline, background):
     render_path = os.path.join(model_path, name, "ours_{}".format(iteration), "renders")
@@ -48,7 +47,6 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
     # Warm-up before timing; First frame is slower so don't include it
     for view in views[:10]:
         rendering = render(view, gaussians, pipeline, background)["render"]
-        time.sleep(0.1)
 
     for _ in range(repeat):
         for view in views:
@@ -56,7 +54,6 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
             rendering = render(view, gaussians, pipeline, background)["render"]
             end = timer()
             total_time += timedelta(seconds=end-start).total_seconds()
-            time.sleep(0.1)
             pbar.update(1)
 
     pbar.close()
