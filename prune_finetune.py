@@ -75,7 +75,6 @@ def training(
         first_iter = int(args.start_pointcloud.split('/')[-2].split('_')[-1]) 
         gaussians.training_setup(opt)
         gaussians.max_radii2D = torch.zeros((gaussians.get_xyz.shape[0]), device="cuda")
-
     else:
         raise ValueError("A checkpoint file or a pointcloud is required to proceed.")
 
@@ -92,9 +91,11 @@ def training(
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
+    first_iter = 30000 #remove
     first_iter += 1
+    lr_iter = first_iter
     gaussians.scheduler = ExponentialLR(gaussians.optimizer, gamma=0.95)
-
+    
     for iteration in range(first_iter, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -131,12 +132,12 @@ def training(
 
         iter_start.record()
 
-        gaussians.update_learning_rate(iteration)
+        gaussians.update_learning_rate(lr_iter)
 
         # Every 1000 its we increase the levels of SH up to a maximum degree
-        if iteration % 1000 == 0:
+        if lr_iter % 1000 == 0:
             gaussians.oneupSHdegree()
-        if iteration % 400 == 0:
+        if lr_iter % 400 == 0:
             gaussians.scheduler.step()
 
         # Pick a random Camera
@@ -204,7 +205,7 @@ def training(
                 after_prune=False,
                 init_report=init_report
             )
-
+                
             if iteration in args.prune_iterations:
                 prune_idx = args.prune_iterations.index(iteration) + 1
 
@@ -220,7 +221,6 @@ def training(
                         fishers = torch.zeros(N,6,6, device=device).float()
                         for view_idx, view in tqdm(enumerate(scene.getTrainCameras()), total=len(scene.getTrainCameras()),
                                                    desc="Computing Fisher..."):
-
                             pool_func(
                                 view_idx, view, gaussians, pipe, background,
                                 fishers, args.fisher_resolution
@@ -251,10 +251,18 @@ def training(
                     after_prune=True,
                     init_report=False,
                 )
-
-            if iteration < opt.iterations:
+                
+            elif iteration < opt.iterations:
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none=True)
+
+            # Resetting boosts performance
+            if lr_iter == opt.position_lr_max_steps:
+                gaussians.training_setup(opt)
+                gaussians.scheduler = ExponentialLR(gaussians.optimizer, gamma=0.95)
+                lr_iter = first_iter
+            else:
+                lr_iter += 1
 
 
 if __name__ == "__main__":
@@ -268,7 +276,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug_from", type=int, default=-1)
     parser.add_argument("--detect_anomaly", action="store_true", default=False)
     parser.add_argument(
-        "--test_iterations", nargs="+", type=int, default=[30_001, 35_001, 40_000]
+        "--test_iterations", nargs="+", type=int, default=[30_000, 30_001, 35_000, 35_001, 40_000]
     )
     parser.add_argument(
         "--save_iterations", nargs="+", type=int, default=[40_000]
@@ -283,9 +291,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_pointcloud", type=str, default=None)
     parser.add_argument("--prune_percent", type=float, default=0.66)
     parser.add_argument("--fisher_file", type=str, default=None)
-    parser.add_argument(
-        "--fisher_resolution", type=int, default=1
-    )
+    parser.add_argument("--fisher_resolution", type=int, default=1)
     parser.add_argument("--fisher-via-cuda", action="store_true")
     args = parser.parse_args(sys.argv[1:])
 
