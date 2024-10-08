@@ -256,10 +256,11 @@ def training(
 
             # Resetting after pruning boosts performance
             if lr_iter == opt.position_lr_max_steps:  
-                gaussians = GaussianModel(dataset.sh_degree)
-                scene = Scene(dataset, gaussians)
                 point_cloud_path = os.path.join(scene.model_path, "point_cloud/iteration_{}".format(iteration))
-                gaussians.load_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
+                if os.path.exists(point_cloud_path):
+                    gaussians = GaussianModel(dataset.sh_degree)
+                    scene = Scene(dataset, gaussians)
+                    gaussians.load_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
                 gaussians.training_setup(opt)
                 gaussians.max_radii2D = torch.zeros((gaussians.get_xyz.shape[0]), device="cuda")
                 gaussians.scheduler = ExponentialLR(gaussians.optimizer, gamma=0.95)
