@@ -62,7 +62,6 @@ def training(
     debug_from,
     args,
 ):
-    first_iter = 0
     tb_writer = prepare_output_and_logger(dataset)
     gaussians = GaussianModel(dataset.sh_degree)
     scene = Scene(dataset, gaussians)
@@ -78,8 +77,7 @@ def training(
     else:
         raise ValueError("A checkpoint file or a pointcloud is required to proceed.")
 
-    print()
-    print(f"Initial Model: Number of Gaussians is {len(gaussians.get_xyz)}")
+    print(f"\nInitial Model: Number of Gaussians is {len(gaussians.get_xyz)}")
     prune_idx = 0
 
     bg_color = [1, 1, 1] if dataset.white_background else [0, 0, 0]
@@ -91,11 +89,10 @@ def training(
     viewpoint_stack = None
     ema_loss_for_log = 0.0
     progress_bar = tqdm(range(first_iter, opt.iterations), desc="Training progress")
-    first_iter = 30000 #remove
     first_iter += 1
     lr_iter = first_iter
-    gaussians.scheduler = ExponentialLR(gaussians.optimizer, gamma=0.95)
-    
+    gaussians.scheduler = ExponentialLR(gaussians.optimizer, gamma=0.95)    
+
     for iteration in range(first_iter, opt.iterations + 1):
         if network_gui.conn == None:
             network_gui.try_connect()
@@ -234,8 +231,7 @@ def training(
                     fishers_log_dets
                )
 
-                print()
-                print(f"Prune Round {prune_idx}: Number of Gaussians is {len(gaussians.get_xyz)}")
+                print(f"Iteration {iteration}\nPrune Round {prune_idx}: Number of Gaussians is {len(gaussians.get_xyz)}")
                 training_report(
                     tb_writer,
                     prune_idx,
@@ -252,14 +248,22 @@ def training(
                     init_report=False,
                 )
                 
-            elif iteration < opt.iterations:
+            if iteration < opt.iterations:
                 gaussians.optimizer.step()
                 gaussians.optimizer.zero_grad(set_to_none=True)
+            else:
+                return
 
-            # Resetting boosts performance
-            if lr_iter == opt.position_lr_max_steps:
+            # Resetting after pruning boosts performance
+            if lr_iter == opt.position_lr_max_steps:  
+                gaussians = GaussianModel(dataset.sh_degree)
+                scene = Scene(dataset, gaussians)
+                point_cloud_path = os.path.join(scene.model_path, "point_cloud/iteration_{}".format(iteration))
+                gaussians.load_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
                 gaussians.training_setup(opt)
+                gaussians.max_radii2D = torch.zeros((gaussians.get_xyz.shape[0]), device="cuda")
                 gaussians.scheduler = ExponentialLR(gaussians.optimizer, gamma=0.95)
+                viewpoint_stack = None
                 lr_iter = first_iter
             else:
                 lr_iter += 1
