@@ -11,45 +11,30 @@
 
 import os
 import torch
-from random import randint
 from utils.loss_utils import l1_loss, ssim
 from lpipsPyTorch import lpips
 from gaussian_renderer import render, network_gui
 import sys
+from random import randint
 from scene import Scene, GaussianModel
 from utils.general_utils import safe_state
-import uuid
 from tqdm import tqdm
 from utils.image_utils import psnr
 from argparse import ArgumentParser, Namespace
 from arguments import ModelParams, PipelineParams, OptimizationParams
 import numpy as np
-
 try:
     from torch.utils.tensorboard import SummaryWriter
-
     TENSORBOARD_FOUND = True
 except ImportError:
     TENSORBOARD_FOUND = False
-import random
-import copy
 import gc
 from os import makedirs
-from fisher_pool_xyz_scaling import pool_fisher_python, pool_fisher_cuda
-import torchvision
 from torch.optim.lr_scheduler import ExponentialLR
-import csv
 from utils.logger_utils import training_report, prepare_output_and_logger
 
-
-to_tensor = (
-    lambda x: x.to("cuda")
-    if isinstance(x, torch.Tensor)
-    else torch.Tensor(x).to("cuda")
-)
-img2mse = lambda x, y: torch.mean((x - y) ** 2)
-mse2psnr = lambda x: -10.0 * torch.log(x) / torch.log(to_tensor([10.0]))
-
+from fisher_pool_xyz_scaling import pool_fisher_cuda
+from prune import prune_list, calculate_v_imp_score
 
 def training(
     dataset,
@@ -204,34 +189,42 @@ def training(
             )
                 
             if iteration in args.prune_iterations:
-                prune_idx = args.prune_iterations.index(iteration) + 1
+                prune_percent = args.prune_percent[prune_idx]
+                prune_idx += 1
 
-                # Load or compute fisher
-                if args.fisher_file is not None:
-                    assert len(args.prune_iterations) == 1, "--fisher_file is only supported for single round pruning!"
-                    fishers = torch.load(args.fisher_file)
-                else:
-                    pool_func = pool_fisher_cuda if args.fisher_via_cuda else pool_fisher_python
+                if args.prune_type == 'fisher':
+                    # Compute and save CUDA Fisher
                     N = gaussians.get_xyz.shape[0]
                     device = gaussians.get_xyz.device
                     with torch.enable_grad():
                         fishers = torch.zeros(N,6,6, device=device).float()
-                        for view_idx, view in tqdm(enumerate(scene.getTrainCameras()), total=len(scene.getTrainCameras()),
+                        for view_idx, view in tqdm(
+                            enumerate(scene.getTrainCameras()), total=len(scene.getTrainCameras()),
                                                    desc="Computing Fisher..."):
-                            pool_func(
+                            pool_fisher_cuda(
                                 view_idx, view, gaussians, pipe, background,
                                 fishers, args.fisher_resolution
                             )
                     torch.save(fishers, scene.model_path + f'/fisher_iter{iteration}.pt')
-                # Prune using log determinant
-                fishers_sv = torch.linalg.svdvals(fishers)
-                fishers_log_dets = torch.log(fishers_sv).sum(dim=1)
-                gaussians.prune_gaussians(
-                    args.prune_percent,
-                    fishers_log_dets
-               )
+                    # Prune using log determinant
+                    fishers_sv = torch.linalg.svdvals(fishers)
+                    fishers_log_dets = torch.log(fishers_sv).sum(dim=1)
+                    gaussians.prune_gaussians(
+                        prune_percent,
+                        fishers_log_dets
+                   )
+                # Borrowed from https://github.com/VITA-Group/LightGaussian/blob/main/prune_finetune.py#L222
+                elif args.prune_type == 'v_important_score':
+                    gaussian_list, imp_list = prune_list(gaussians, scene, pipe, background)
+                    v_list = calculate_v_imp_score(gaussians, imp_list, args.v_pow)
+                    gaussians.prune_gaussians(
+                        prune_percent, 
+                        v_list
+                    )
+                else:
+                    raise Exception("Unsupportive pruning method")
 
-                print(f"Iteration {iteration}\nPrune Round {prune_idx}: Number of Gaussians is {len(gaussians.get_xyz)}")
+                print(f"Prune Round {prune_idx}: Number of Gaussians is {len(gaussians.get_xyz)}")
                 training_report(
                     tb_writer,
                     prune_idx,
@@ -254,10 +247,20 @@ def training(
             else:
                 return
 
-            # Resetting after pruning boosts performance
+            # Refreshing environment before pruning boosts performance
             if lr_iter == opt.position_lr_max_steps:  
+                print("\n[ITER {}] Refreshing environment".format(iteration))
                 point_cloud_path = os.path.join(scene.model_path, "point_cloud/iteration_{}".format(iteration))
                 if os.path.exists(point_cloud_path):
+                    print("Loading {}".format(point_cloud_path))
+                    del gaussians.scheduler
+                    del gaussians.optimizer
+                    del gaussians.xyz_gradient_accum
+                    del gaussians.denom
+                    del gaussians
+                    del scene.gaussians
+                    del scene
+                    gc.collect()
                     gaussians = GaussianModel(dataset.sh_degree)
                     scene = Scene(dataset, gaussians)
                     gaussians.load_ply(os.path.join(point_cloud_path, "point_cloud.ply"))
@@ -290,14 +293,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_iterations", nargs="+", type=int, default=[35_000, 40_000]
     )
-
     parser.add_argument("--prune_iterations", nargs="+", type=int, default=[30_001, 35_001])
     parser.add_argument("--start_checkpoint", type=str, default=None)
     parser.add_argument("--start_pointcloud", type=str, default=None)
-    parser.add_argument("--prune_percent", type=float, default=0.66)
-    parser.add_argument("--fisher_file", type=str, default=None)
+    parser.add_argument("--prune_type", type=str, default="fisher")
+    parser.add_argument("--prune_percent", nargs="+", type=float, default=[0.66, 0.66])
     parser.add_argument("--fisher_resolution", type=int, default=1)
-    parser.add_argument("--fisher-via-cuda", action="store_true")
+    parser.add_argument("--v_pow", type=float, default=0.1)
     args = parser.parse_args(sys.argv[1:])
 
     print("Optimizing " + args.model_path)
