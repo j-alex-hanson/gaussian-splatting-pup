@@ -60,7 +60,7 @@ def render_set(model_path, name, iteration, views, gaussians, pipeline, backgrou
 
     avg_fps = num_frames / total_time
     print("Average FPS:", avg_fps)
-    with open(os.path.join(model_path, 'fps.txt'), 'w') as f:
+    with open(os.path.join(model_path, f'fps_{iteration}.txt'), 'w') as f:
         f.write(str(avg_fps))
 
 
