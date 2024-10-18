@@ -10,3 +10,6 @@
 [submodule "submodules/rasterization_and_pup_fisher"]
 	path = submodules/rasterization_and_pup_fisher
 	url = git@github.com:j-alex-hanson/rasterization_and_pup_fisher.git
+[submodule "submodules/compress-diff-gaussian-rasterization"]
+	path = submodules/compress-diff-gaussian-rasterization
+	url = https://github.com/tuallen/compress-diff-gaussian-rasterization

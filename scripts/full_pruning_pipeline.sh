@@ -15,10 +15,10 @@ CUDA_VISIBLE_DEVICES=0 python prune_finetune.py \
     -m $directory \
     --eval \
     --start_pointcloud ${directory}/point_cloud/iteration_${start_iteration}/point_cloud.ply \
-    --prune_percent $prune_percent \
-    --position_lr_max_steps 40000 \
+    --prune_type fisher
+    --prune_percent $prune_percent $prune_percent \
+    --position_lr_max_steps 35000 \
     --iterations 40000 \
-    --fisher-via-cuda \
     --port 6071
 
 python render.py \
