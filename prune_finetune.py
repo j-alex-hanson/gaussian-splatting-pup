@@ -297,7 +297,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_checkpoint", type=str, default=None)
     parser.add_argument("--start_pointcloud", type=str, default=None)
     parser.add_argument("--prune_type", type=str, default="fisher")
-    parser.add_argument("--prune_percent", nargs="+", type=float, default=[0.66, 0.66])
+    parser.add_argument("--prune_percent", nargs="+", type=float, default=[0.8, 0.5])
     parser.add_argument("--fisher_resolution", type=int, default=1)
     parser.add_argument("--v_pow", type=float, default=0.1)
     args = parser.parse_args(sys.argv[1:])
