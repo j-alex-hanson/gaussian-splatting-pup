@@ -1,6 +1,8 @@
 # PUP 3D-GS: Principled Uncertainty Pruning for 3D Gaussian Splatting
 
-[Alex Hanson*](https://www.cs.umd.edu/~hanson/), [Allen Tu*](https://tuallen.github.io), [Vasu Singla](https://vasusingla.github.io/), [Mayuka Jayawardhana](https://www.cs.umd.edu/people/mayukaj), [Matthias Zwicker](https://www.cs.umd.edu/~zwicker/), [Tom Goldstein](https://www.cs.umd.edu/~tomg/) (* indicates equal contribution)
+[Alex Hanson*](https://www.cs.umd.edu/~hanson/), [Allen Tu*](https://tuallen.github.io), [Vasu Singla](https://vasusingla.github.io/), [Mayuka Jayawardhana](https://www.cs.umd.edu/people/mayukaj), [Matthias Zwicker](https://www.cs.umd.edu/~zwicker/), [Tom Goldstein](https://www.cs.umd.edu/~tomg/) 
+
+*\* indicates equal contribution*
 
 [arXiv](https://arxiv.org/abs/2406.10219) | [Website](https://pup3dgs.github.io/)
 
