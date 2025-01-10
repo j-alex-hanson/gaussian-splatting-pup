@@ -26,7 +26,7 @@ CUDA_VISIBLE_DEVICES=0 python prune_finetune.py \
     --checkpoint_iterations 0 \
     --test_iterations 0 \
     --prune_type $prune_type \
-    --fisher_resolution 4
+    --fisher_resolution 4 \
     --port 6071
 
 # PRUNE ROUND 2
@@ -34,7 +34,7 @@ directory2=$directory1\_$round2
 mkdir -p $directory2
 cp -r $orig_path/cameras.json $directory2/cameras.json
 cp -r $orig_path/cfg_args $directory2/cfg_args
-CUDA_VISIBLE_DEVICES=0 python prune_finetune_multipleround2.py \
+CUDA_VISIBLE_DEVICES=0 python prune_finetune.py \
     -s $source_path \
     -m $directory2 \
     --start_pointcloud ${directory1}/point_cloud/iteration_35000/point_cloud.ply \
@@ -46,7 +46,8 @@ CUDA_VISIBLE_DEVICES=0 python prune_finetune_multipleround2.py \
     --checkpoint_iterations 0 \
     --test_iterations 0 \
     --prune_type $prune_type \
-    --fisher_resolution 4
+    --fisher_resolution 4 \
+    --first_iter 30000 \
     --port 6071 \
 
 # COLLECT METRICS

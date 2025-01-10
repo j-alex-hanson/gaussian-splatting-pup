@@ -61,6 +61,8 @@ def training(
         gaussians.max_radii2D = torch.zeros((gaussians.get_xyz.shape[0]), device="cuda")
     else:
         raise ValueError("A checkpoint file or a pointcloud is required to proceed.")
+    if args.first_iter:
+        first_iter = args.first_iter
 
     print(f"\nInitial Model: Number of Gaussians is {len(gaussians.get_xyz)}")
     prune_idx = 0
@@ -299,6 +301,7 @@ if __name__ == "__main__":
     parser.add_argument("--prune_type", type=str, default="fisher")
     parser.add_argument("--prune_percent", nargs="+", type=float, default=[0.8, 0.5])
     parser.add_argument("--fisher_resolution", type=int, default=1)
+    parser.add_argument("--first_iter", type=int, default=None)
     parser.add_argument("--v_pow", type=float, default=0.1)
     args = parser.parse_args(sys.argv[1:])
 
