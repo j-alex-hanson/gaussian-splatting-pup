@@ -73,7 +73,7 @@ Fishers will be saved in the `fisher-pool-<X>/fishers_xyz_scaling` subdirectory 
     booktitle = {Proceedings of the Computer Vision and Pattern Recognition Conference (CVPR)},
     month     = {June},
     year      = {2025},
-    pages     = {5949-5958}
+    pages     = {5949-5958},
     url       = {https://pup3dgs.github.io/}
 }</code></pre>
   </div>
